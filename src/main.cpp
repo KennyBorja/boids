@@ -20,7 +20,8 @@ const float RADIO_SEPARACION  = 25.0f;
 const float PESO_SEPARACION   = 0.05f;  
 const float PESO_ALINEAMIENTO = 0.01f;  
 const float PESO_COHESION     = 0.005f; 
-const float VEL_MAX           = 4.0f;  
+const float VEL_MAX           = 4.0f;   // rapidez maxima
+const float VEL_MIN           = 1.0f;   // rapidez minima (los boids nunca se detienen)
 
 
 //  Punto 1 - Estructura del Boid
@@ -166,6 +167,9 @@ void updateBoids(std::vector<Boid>& boids) {
         if (rapidez > VEL_MAX) {
             boids[i].vx = (boids[i].vx / rapidez) * VEL_MAX;
             boids[i].vy = (boids[i].vy / rapidez) * VEL_MAX;
+        } else if (rapidez < VEL_MIN && rapidez > 0) {
+            boids[i].vx = (boids[i].vx / rapidez) * VEL_MIN;
+            boids[i].vy = (boids[i].vy / rapidez) * VEL_MIN;
         }
 
         boids[i].angulo = atan2(boids[i].vy, boids[i].vx);
