@@ -15,13 +15,13 @@ const int    NUM_BOIDS = 50;
 const float  VELOCIDAD = 2.0f;
 
 // Punto 4 - Parametros de las reglas
-const float RADIO_VISION      = 80.0f; 
-const float RADIO_SEPARACION  = 25.0f; 
-const float PESO_SEPARACION   = 0.05f;  
-const float PESO_ALINEAMIENTO = 0.01f;  
-const float PESO_COHESION     = 0.005f; 
-const float VEL_MAX           = 4.0f;   // rapidez maxima
-const float VEL_MIN           = 1.0f;   // rapidez minima (los boids nunca se detienen)
+float RADIO_VISION      = 80.0f;
+float RADIO_SEPARACION  = 25.0f;
+float PESO_SEPARACION   = 0.05f;
+float PESO_ALINEAMIENTO = 0.01f;
+float PESO_COHESION     = 0.005f;
+const float VEL_MAX     = 4.0f;
+const float VEL_MIN     = 1.0f;
 
 
 //  Punto 1 - Estructura del Boid
@@ -147,7 +147,16 @@ Vec2 cohesion(const std::vector<Boid>& boids, int i) {
 }
 
 
-// aplicar reglas y mover
+//  Punto 7 - Rebote contra los bordes de la ventana
+// ============================================================
+void borderBounce(Boid& b) {
+    if (b.x < 0)     { b.x = 0;     b.vx = -b.vx; }
+    if (b.x > ANCHO) { b.x = ANCHO; b.vx = -b.vx; }
+    if (b.y < 0)     { b.y = 0;     b.vy = -b.vy; }
+    if (b.y > ALTO)  { b.y = ALTO;  b.vy = -b.vy; }
+}
+
+
 void updateBoids(std::vector<Boid>& boids) {
     for (int i = 0; i < (int)boids.size(); i++) {
 
@@ -175,6 +184,8 @@ void updateBoids(std::vector<Boid>& boids) {
         boids[i].angulo = atan2(boids[i].vy, boids[i].vx);
         boids[i].x += boids[i].vx;
         boids[i].y += boids[i].vy;
+
+        borderBounce(boids[i]);
     }
 }
 
@@ -222,6 +233,50 @@ void initOpenGL() {
     glMatrixMode(GL_MODELVIEW);
 }
 
+
+//  Punto 8 - Control en tiempo real mediante teclado
+// ============================================================
+void procesarTeclado(GLFWwindow* window, std::vector<Boid>& boids) {
+
+    // Radio de vision
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) RADIO_VISION += 0.5f;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) RADIO_VISION  = fmax(10.0f, RADIO_VISION - 0.5f);
+
+    // Peso separacion
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) PESO_SEPARACION += 0.05f;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) PESO_SEPARACION  = fmax(0.0f, PESO_SEPARACION - 0.05f);
+
+    // Peso alineamiento
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) PESO_ALINEAMIENTO += 0.05f;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) PESO_ALINEAMIENTO  = fmax(0.0f, PESO_ALINEAMIENTO - 0.05f);
+
+    // Peso cohesion
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) PESO_COHESION += 0.05f;
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) PESO_COHESION  = fmax(0.0f, PESO_COHESION - 0.05f);
+
+    static double ultimoCambio = 0;
+    double ahora = glfwGetTime();
+    if (ahora - ultimoCambio > 0.1) {
+        if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
+            Boid nuevo;
+            nuevo.x      = (float)(rand() % ANCHO);
+            nuevo.y      = (float)(rand() % ALTO);
+            nuevo.angulo = ((float)rand() / RAND_MAX) * 2.0f * M_PI;
+            nuevo.vx     = VELOCIDAD * cos(nuevo.angulo);
+            nuevo.vy     = VELOCIDAD * sin(nuevo.angulo);
+            nuevo.color_r = (float)(rand() % 255) / 255.0f;
+            nuevo.color_g = (float)(rand() % 255) / 255.0f;
+            nuevo.color_b = (float)(rand() % 255) / 255.0f;
+            boids.push_back(nuevo);
+            ultimoCambio = ahora;
+        }
+        if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !boids.empty()) {
+            boids.pop_back();
+            ultimoCambio = ahora;
+        }
+    }
+}
+
 //  Main
 // ============================================================
 int main() {
@@ -245,11 +300,20 @@ int main() {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
+        procesarTeclado(window, boids);
+
         updateBoids(boids);
 
         for (int i = 0; i < (int)boids.size(); i++) {
             drawBoid(boids[i]);
         }
+
+        char titulo[256];
+        snprintf(titulo, sizeof(titulo),
+            "Boids: %d | Vision: %.0f | Sep: %.3f | Ali: %.3f | Coh: %.4f",
+            (int)boids.size(), RADIO_VISION,
+            PESO_SEPARACION, PESO_ALINEAMIENTO, PESO_COHESION);
+        glfwSetWindowTitle(window, titulo);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
